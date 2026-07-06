@@ -11,9 +11,11 @@ class Region(str, Enum):
 
     Cloud region.
     """
-    EU = 'eu'
-    US = 'us'
-    CN = 'cn'
+
+    EU = "eu"
+    US = "us"
+    CN = "cn"
+    RU = "ru"
 
 
 class Language(int, Enum):
@@ -21,6 +23,7 @@ class Language(int, Enum):
 
     Language of the API.
     """
+
     CN = 1
     EN = 2
     ES = 3
@@ -35,85 +38,89 @@ class Language(int, Enum):
 
     def __str__(self):
         if self == Language.CN:
-            return 'cn'
+            return "cn"
         elif self == Language.EN:
-            return 'en'
+            return "en"
         elif self == Language.ES:
-            return 'es'
+            return "es"
         elif self == Language.DE:
-            return 'de'
+            return "de"
         elif self == Language.FR:
-            return 'fr'
+            return "fr"
         elif self == Language.PL:
-            return 'pl'
+            return "pl"
         elif self == Language.IT:
-            return 'it'
+            return "it"
         elif self == Language.TR:
-            return 'tr'
+            return "tr"
         elif self == Language.CS:
-            return 'cs'
+            return "cs"
         elif self == Language.NL:
-            return 'nl'
+            return "nl"
         elif self == Language.SV:
-            return 'sv'
+            return "sv"
         else:
-            return 'en'
+            return "en"
 
 
 class Product(str, Enum):
     """Product model enum."""
 
-    RCV3 = '1528986273083777024'
-    RCV5 = '1540149850806333440'
-    RCF5 = '1599715149861306368'
+    RCV3 = "1528986273083777024"
+    RCV5 = "1540149850806333440"
+    RCF5 = "1599715149861306368"
 
 
 REGION_URLS = {
-    Region.EU: 'https://eu-appaiot.3irobotix.net',
-    Region.US: 'https://us-appaiot.3irobotix.net',
-    Region.CN: 'https://cn-appaiot.3irobotix.net',
+    Region.EU: "https://eu-appaiot.3irobotix.net",
+    Region.US: "https://us-appaiot.3irobotix.net",
+    Region.CN: "https://cn-appaiot.3irobotix.net",
+    Region.RU: "https://ru-appaiot.3irobotix.net",
 }
 
 REGION_INDEX = {
     Region.EU: 1,
     Region.US: 2,
     Region.CN: 0,
+    Region.RU: 3,
 }
 
 ROBOT_PROPERTIES = [
-    'status',
-    'firmware_code',
-    'firmware',
-    'fault',
-    'mode',
-    'wind',
-    'water',
-    'repeat_state',
-    'charge_state',
-    'quantity',
-    'work_mode',
-    'sweep_type',
-    'build_map',
-    'cleaning_area',
-    'cleaning_time',
-    'current_map_id',
-    'custom_type',
-    'privacy',
-    'alarm',
-    'volume',
-    'tank_state',
-    'cloth_state',
-    'mop_route',
-    'map_num',
-    'language',
-    'voice_type',
-    'quiet_status',
-    'quiet_is_open'
+    "status",
+    "firmware_code",
+    "firmware",
+    "fault",
+    "mode",
+    "wind",
+    "water",
+    "repeat_state",
+    "charge_state",
+    "quantity",
+    "work_mode",
+    "sweep_type",
+    "build_map",
+    "cleaning_area",
+    "cleaning_time",
+    "current_map_id",
+    "custom_type",
+    "privacy",
+    "alarm",
+    "volume",
+    "tank_state",
+    "cloth_state",
+    "mop_route",
+    "map_num",
+    "language",
+    "voice_type",
+    "quiet_status",
+    "quiet_is_open",
 ]
 
-TENANT_ID = '1528983614213726208'
-PROJECT_TYPE = 'android_iot.karcher'
-PROTOCOL_VERSION = 'v1'
+TENANT_ID = "1528983614213726208"
+PROJECT_TYPE = "android_iot.karcher"
+PROTOCOL_VERSION = "v1"
 APP_VERSION_CODE = 10004
-APP_VERSION_NAME = '1.0.4'
-SSL_CERTIFICATE_THUMBPRINT = bytes.fromhex('68:A3:68:92:5D:B3:DE:51:6A:80:64:FD:70:38:A3:49:45:D8:6E:DF:11:33:08:66:2C:87:85:A4:C9:F5:4A:10'.replace(':', ''))
+APP_VERSION_NAME = "1.0.4"
+SSL_CERTIFICATE_THUMBPRINT = bytes.fromhex(
+    "68:A3:68:92:5D:B3:DE:51:6A:80:64:FD:70:38:A3:49:45:D8:6E:DF:11:33:08:66:2C:87:85:A4:C9:F5:4A:10".replace(":", "")
+)

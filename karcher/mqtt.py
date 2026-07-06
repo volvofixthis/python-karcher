@@ -1,5 +1,6 @@
-from typing import List
 import ssl
+from typing import List
+
 from paho.mqtt.client import Client, MQTTv311
 
 from .utils import get_random_device_id
@@ -13,9 +14,8 @@ class MqttClient:
         self._password = password
         self._topics = []
         self._client = Client(
-            client_id=self._username + '_' + get_random_device_id(),
-            clean_session=True,
-            protocol=MQTTv311)
+            client_id=self._username + "_" + get_random_device_id(), clean_session=True, protocol=MQTTv311
+        )
         self.on_message = None
         self.on_connect = None
 
@@ -61,8 +61,9 @@ class MqttClient:
         if self._client.is_connected():
             self._client.unsubscribe(t)
 
-    def publish(self, topic, payload):
-        self._client.publish(topic, payload)
+    def publish(self, topic, payload, qos=0):
+        info = self._client.publish(topic, payload, qos=qos)
+        info.wait_for_publish()
 
     def _on_connect(self, client, userdata, flags, rc):
         self._subscribe(self._topics)
@@ -79,18 +80,18 @@ class MqttClient:
 
 def get_device_topics(product_id: str, sn: str) -> List[str]:
     return [
-        '/mqtt/' + product_id + '/' + sn + '/thing/event/property/post',
-        '/mqtt/' + product_id + '/' + sn + '/thing/service/property/set_reply',
+        "/mqtt/" + product_id + "/" + sn + "/thing/event/property/post",
+        "/mqtt/" + product_id + "/" + sn + "/thing/service/property/set_reply",
         get_device_topic_property_get_reply(product_id, sn),
-        '/mqtt/' + product_id + '/' + sn + '/thing/service_invoke',
-        '/mqtt/' + product_id + '/' + sn + '/thing/service_invoke_reply/#',
-        '/mqtt/' + product_id + '/' + sn + '/thing/event/cur_path/post',
-        '/mqtt/' + product_id + '/' + sn + '/ota/service/upgrade/set_reply',
-        '/mqtt/' + product_id + '/' + sn + '/ota/service/upgrade/post',
-        '/mqtt/' + product_id + '/' + sn + '/ota/service/upgrade/get_reply',
-        '/mqtt/' + product_id + '/' + sn + '/ota/service/version/post',
+        "/mqtt/" + product_id + "/" + sn + "/thing/service_invoke",
+        "/mqtt/" + product_id + "/" + sn + "/thing/service_invoke_reply/#",
+        "/mqtt/" + product_id + "/" + sn + "/thing/event/cur_path/post",
+        "/mqtt/" + product_id + "/" + sn + "/ota/service/upgrade/set_reply",
+        "/mqtt/" + product_id + "/" + sn + "/ota/service/upgrade/post",
+        "/mqtt/" + product_id + "/" + sn + "/ota/service/upgrade/get_reply",
+        "/mqtt/" + product_id + "/" + sn + "/ota/service/version/post",
     ]
 
 
 def get_device_topic_property_get_reply(product_id: str, sn: str) -> str:
-    return '/mqtt/' + product_id + '/' + sn + '/thing/service/property/get_reply'
+    return "/mqtt/" + product_id + "/" + sn + "/thing/service/property/get_reply"

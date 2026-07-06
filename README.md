@@ -28,6 +28,8 @@ Commands:
   device-properties  Get device properties.
   devices            List all devices.
   login              Get user session tokens.
+  mqtt-publish       Publish an MQTT message.
+  set-room-clean     Start cleaning selected rooms.
   urls               Get region information.
 ```
 

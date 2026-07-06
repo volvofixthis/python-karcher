@@ -9,7 +9,7 @@ import random
 import re
 import string
 import time
-from typing import Final
+from typing import Any, Final
 import zlib
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
@@ -38,6 +38,10 @@ def get_timestamp() -> int:
 
 def get_timestamp_ms() -> int:
     return int(time.time() * 1000)
+
+
+def get_message_id() -> str:
+    return str(get_timestamp_ms()) + random.choice(string.digits)
 
 
 def get_enc_key() -> bytes:
@@ -101,7 +105,7 @@ def snake_case(value: str) -> str:
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', first_underscore).lower()
 
 
-def snake_case_fields(data: str) -> str:
+def snake_case_fields(data: Any) -> Any:
     if isinstance(data, dict):
         n = {}
         for k, v in data.items():
