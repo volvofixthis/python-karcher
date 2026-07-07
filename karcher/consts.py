@@ -85,6 +85,15 @@ class RechargeControl(str, Enum):
     STOP = "stop"
 
 
+class DirectionControl(int, Enum):
+    """Manual direction control."""
+
+    FORWARD = 1
+    LEFT = 2
+    RIGHT = 3
+    BACKWARD = 4
+
+
 REGION_URLS = {
     Region.EU: "https://eu-appaiot.3irobotix.net",
     Region.US: "https://us-appaiot.3irobotix.net",

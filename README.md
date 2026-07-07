@@ -31,6 +31,7 @@ Commands:
   login              Get user session tokens.
   mqtt-publish       Publish an MQTT message.
   recharge           Start or stop device recharging.
+  set-direction      Send a manual direction command.
   set-room-clean     Start cleaning selected rooms.
   urls               Get region information.
 ```

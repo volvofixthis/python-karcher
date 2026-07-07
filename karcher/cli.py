@@ -10,7 +10,7 @@ import logging
 from functools import wraps
 
 import click
-from karcher.consts import RechargeControl, RoomCleanControl
+from karcher.consts import DirectionControl, RechargeControl, RoomCleanControl
 from karcher.exception import KarcherHomeException
 from karcher.karcher import KarcherHome
 
@@ -89,6 +89,18 @@ def parse_recharge_control(value: str | None) -> RechargeControl:
     if value == "stop":
         return RechargeControl.STOP
     raise click.BadParameter("Must provide either --start or --stop.")
+
+
+def parse_direction_control(value: str | None) -> DirectionControl:
+    if value == "forward":
+        return DirectionControl.FORWARD
+    if value == "left":
+        return DirectionControl.LEFT
+    if value == "right":
+        return DirectionControl.RIGHT
+    if value == "backward":
+        return DirectionControl.BACKWARD
+    raise click.BadParameter("Must provide one of: --forward, --left, --right, --backward.")
 
 
 @cli.command()
@@ -414,6 +426,58 @@ async def dock(
         raise click.BadParameter("Device ID not found.")
 
     result = kh.recharge(dev, RechargeControl.START, qos=qos)
+
+    if auth_token is None:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--forward", "direction", flag_value="forward", help="Set direction to forward.")
+@click.option("--left", "direction", flag_value="left", help="Set direction to left.")
+@click.option("--right", "direction", flag_value="right", help="Set direction to right.")
+@click.option("--backward", "direction", flag_value="backward", help="Set direction to backward.")
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.pass_context
+@coro
+async def set_direction(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    direction: str | None,
+    qos: int,
+):
+    """Send a manual direction command."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    if auth_token is not None:
+        kh.login_token(auth_token, mqtt_token)
+    elif username is not None and password is not None:
+        await kh.login(username, password)
+    else:
+        raise click.BadParameter("Must provide either token or username and password.")
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = kh.set_direction(dev, parse_direction_control(direction), qos=qos)
 
     if auth_token is None:
         await kh.logout()

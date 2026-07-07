@@ -15,6 +15,7 @@ from .auth import Domains, Session
 from .consts import (
     APP_VERSION_CODE,
     APP_VERSION_NAME,
+    DirectionControl,
     PROJECT_TYPE,
     RechargeControl,
     PROTOCOL_VERSION,
@@ -496,6 +497,27 @@ class KarcherHome:
             "method": "service." + action.value + "_recharge",
         }
         topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/" + action.value + "_recharge"
+        self.publish_message(topic, json.dumps(payload), qos=qos)
+        return {
+            "published": True,
+            "topic": topic,
+            "qos": qos,
+            "payload": payload,
+        }
+
+    def set_direction(self, dev: Device, direction: DirectionControl, qos: int = 0):
+        """Send a manual direction command."""
+
+        payload = {
+            "tenantId": TENANT_ID,
+            "method": "service.set_direction",
+            "msgId": get_message_id(),
+            "params": {
+                "direction": int(direction),
+            },
+            "version": "3.0",
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/set_direction"
         self.publish_message(topic, json.dumps(payload), qos=qos)
         return {
             "published": True,
