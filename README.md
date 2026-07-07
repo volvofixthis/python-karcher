@@ -36,6 +36,16 @@ Commands:
   urls               Get region information.
 ```
 
+Save tokens once and reuse them later:
+
+```sh
+karcher-home login -u "user@email" -p "password" --save-tokens
+karcher-home devices
+karcher-home dock -d "DEVICE_ID"
+```
+
+By default tokens are stored in the app config directory as `tokens.json`. You can override that with `--token-file` on `login` and any command that needs auth or MQTT tokens.
+
 ### From code
 
 ```python

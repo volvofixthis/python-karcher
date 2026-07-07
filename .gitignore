@@ -141,3 +141,4 @@ tests/test.py
 tests.txt
 devices.json
 /debug.py
+local/
