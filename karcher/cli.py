@@ -10,6 +10,7 @@ import logging
 from functools import wraps
 
 import click
+from karcher.consts import RoomCleanControl
 from karcher.exception import KarcherHomeException
 from karcher.karcher import KarcherHome
 
@@ -74,6 +75,12 @@ def safe_cli():
     except KarcherHomeException as ex:
         echo(json.dumps({"code": ex.code, "message": ex.message}))
         return
+
+
+def parse_room_clean_control(value: str) -> RoomCleanControl:
+    if value in ["resume", "start"]:
+        return RoomCleanControl.RESUME
+    return RoomCleanControl.PAUSE
 
 
 @cli.command()
@@ -251,7 +258,14 @@ async def mqtt_publish(
 @click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
 @click.option("--device-id", "-d", required=True, help="Device ID.")
 @click.option("--room-id", required=True, multiple=True, help="Room ID to clean. Repeat for multiple rooms.")
-@click.option("--ctrl-value", default=1, type=int, help="Control value. Default: 1")
+@click.option("--resume", "ctrl_value", flag_value="resume", help="Alias for --ctrl-value resume")
+@click.option("--pause", "ctrl_value", flag_value="pause", help="Alias for --ctrl-value pause")
+@click.option(
+    "--ctrl-value",
+    default="resume",
+    type=click.Choice(["resume", "start", "pause"], case_sensitive=False),
+    help="Control action. resume/start=1, pause=2. Default: resume",
+)
 @click.option("--clean-type", default=0, type=int, help="Clean type. Default: 0")
 @click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
 @click.pass_context
@@ -264,7 +278,7 @@ async def set_room_clean(
     mqtt_token: str,
     device_id: str,
     room_id: tuple[str, ...],
-    ctrl_value: int,
+    ctrl_value: str,
     clean_type: int,
     qos: int,
 ):
@@ -287,7 +301,13 @@ async def set_room_clean(
     if dev is None:
         raise click.BadParameter("Device ID not found.")
 
-    result = kh.set_room_clean(dev, list(room_id), ctrl_value=ctrl_value, clean_type=clean_type, qos=qos)
+    result = kh.set_room_clean(
+        dev,
+        list(room_id),
+        ctrl_value=parse_room_clean_control(ctrl_value.lower()),
+        clean_type=clean_type,
+        qos=qos,
+    )
 
     # Logout if we used a username and password
     if auth_token is None:

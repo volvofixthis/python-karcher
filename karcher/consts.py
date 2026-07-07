@@ -71,6 +71,13 @@ class Product(str, Enum):
     RCF5 = "1599715149861306368"
 
 
+class RoomCleanControl(int, Enum):
+    """Room cleaning control action."""
+
+    RESUME = 1
+    PAUSE = 2
+
+
 REGION_URLS = {
     Region.EU: "https://eu-appaiot.3irobotix.net",
     Region.US: "https://us-appaiot.3irobotix.net",

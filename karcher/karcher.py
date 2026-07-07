@@ -19,6 +19,7 @@ from .consts import (
     PROTOCOL_VERSION,
     REGION_URLS,
     ROBOT_PROPERTIES,
+    RoomCleanControl,
     SSL_CERTIFICATE_THUMBPRINT,
     TENANT_ID,
     Language,
@@ -453,13 +454,20 @@ class KarcherHome:
         self._mqtt_connect(wait_for_connect=True)
         self._mqtt.publish(topic, payload, qos=qos)
 
-    def set_room_clean(self, dev: Device, room_ids: List[str], ctrl_value: int = 1, clean_type: int = 0, qos: int = 0):
+    def set_room_clean(
+        self,
+        dev: Device,
+        room_ids: List[str],
+        ctrl_value: RoomCleanControl = RoomCleanControl.RESUME,
+        clean_type: int = 0,
+        qos: int = 0,
+    ):
         """Start room cleaning for selected rooms."""
 
         payload = {
             "tenantId": TENANT_ID,
             "params": {
-                "ctrl_value": ctrl_value,
+                "ctrl_value": int(ctrl_value),
                 "clean_type": clean_type,
                 "room_ids": room_ids,
             },
