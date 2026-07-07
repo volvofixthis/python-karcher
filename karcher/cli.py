@@ -10,7 +10,7 @@ import logging
 from functools import wraps
 
 import click
-from karcher.consts import RoomCleanControl
+from karcher.consts import RechargeControl, RoomCleanControl
 from karcher.exception import KarcherHomeException
 from karcher.karcher import KarcherHome
 
@@ -81,6 +81,14 @@ def parse_room_clean_control(value: str) -> RoomCleanControl:
     if value in ["resume", "start"]:
         return RoomCleanControl.RESUME
     return RoomCleanControl.PAUSE
+
+
+def parse_recharge_control(value: str | None) -> RechargeControl:
+    if value == "start":
+        return RechargeControl.START
+    if value == "stop":
+        return RechargeControl.STOP
+    raise click.BadParameter("Must provide either --start or --stop.")
 
 
 @cli.command()
@@ -310,6 +318,103 @@ async def set_room_clean(
     )
 
     # Logout if we used a username and password
+    if auth_token is None:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--start", "action", flag_value="start", help="Start recharging.")
+@click.option("--stop", "action", flag_value="stop", help="Stop recharging.")
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.pass_context
+@coro
+async def recharge(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    action: str | None,
+    qos: int,
+):
+    """Start or stop device recharging."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    if auth_token is not None:
+        kh.login_token(auth_token, mqtt_token)
+    elif username is not None and password is not None:
+        await kh.login(username, password)
+    else:
+        raise click.BadParameter("Must provide either token or username and password.")
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = kh.recharge(dev, parse_recharge_control(action), qos=qos)
+
+    if auth_token is None:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.pass_context
+@coro
+async def dock(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    qos: int,
+):
+    """Send the device back to the dock."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    if auth_token is not None:
+        kh.login_token(auth_token, mqtt_token)
+    elif username is not None and password is not None:
+        await kh.login(username, password)
+    else:
+        raise click.BadParameter("Must provide either token or username and password.")
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = kh.recharge(dev, RechargeControl.START, qos=qos)
+
     if auth_token is None:
         await kh.logout()
 

@@ -78,6 +78,13 @@ class RoomCleanControl(int, Enum):
     PAUSE = 2
 
 
+class RechargeControl(str, Enum):
+    """Recharge control action."""
+
+    START = "start"
+    STOP = "stop"
+
+
 REGION_URLS = {
     Region.EU: "https://eu-appaiot.3irobotix.net",
     Region.US: "https://us-appaiot.3irobotix.net",

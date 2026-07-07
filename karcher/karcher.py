@@ -16,6 +16,7 @@ from .consts import (
     APP_VERSION_CODE,
     APP_VERSION_NAME,
     PROJECT_TYPE,
+    RechargeControl,
     PROTOCOL_VERSION,
     REGION_URLS,
     ROBOT_PROPERTIES,
@@ -476,6 +477,25 @@ class KarcherHome:
             "msgId": get_message_id(),
         }
         topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/set_room_clean"
+        self.publish_message(topic, json.dumps(payload), qos=qos)
+        return {
+            "published": True,
+            "topic": topic,
+            "qos": qos,
+            "payload": payload,
+        }
+
+    def recharge(self, dev: Device, action: RechargeControl, qos: int = 0):
+        """Start or stop recharging."""
+
+        payload = {
+            "tenantId": TENANT_ID,
+            "version": "3.0",
+            "params": {},
+            "msgId": get_message_id(),
+            "method": "service." + action.value + "_recharge",
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/" + action.value + "_recharge"
         self.publish_message(topic, json.dumps(payload), qos=qos)
         return {
             "published": True,

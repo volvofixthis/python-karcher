@@ -25,10 +25,12 @@ Options:
   --help                          Show this message and exit.
 
 Commands:
+  dock               Send the device back to the dock.
   device-properties  Get device properties.
   devices            List all devices.
   login              Get user session tokens.
   mqtt-publish       Publish an MQTT message.
+  recharge           Start or stop device recharging.
   set-room-clean     Start cleaning selected rooms.
   urls               Get region information.
 ```
