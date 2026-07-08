@@ -182,6 +182,18 @@ def parse_direction_control(value: str | None) -> DirectionControl:
     raise click.BadParameter("Must provide one of: --forward, --left, --right, --backward.")
 
 
+def parse_point_values(csv_values: str, expected: int, label: str) -> list[float]:
+    try:
+        parsed = [float(v.strip()) for v in csv_values.split(",") if v.strip() != ""]
+    except ValueError as ex:
+        raise click.BadParameter(f"Invalid --{label} value: {ex}") from ex
+
+    if len(parsed) != expected:
+        raise click.BadParameter(f"--{label} requires exactly {expected} float values.")
+
+    return parsed
+
+
 @cli.command()
 @click.pass_context
 @coro
@@ -355,14 +367,8 @@ async def mqtt_publish(
 @click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
 @click.option("--device-id", "-d", required=True, help="Device ID.")
 @click.option("--room-id", required=True, multiple=True, help="Room ID to clean. Repeat for multiple rooms.")
-@click.option("--resume", "ctrl_value", flag_value="resume", help="Alias for --ctrl-value resume")
-@click.option("--pause", "ctrl_value", flag_value="pause", help="Alias for --ctrl-value pause")
-@click.option(
-    "--ctrl-value",
-    default="resume",
-    type=click.Choice(["resume", "start", "pause"], case_sensitive=False),
-    help="Control action. resume/start=1, pause=2. Default: resume",
-)
+@click.option("--resume", "ctrl_value", flag_value="resume", default=True, help="Resume/start room cleaning.")
+@click.option("--pause", "ctrl_value", flag_value="pause", help="Pause room cleaning.")
 @click.option("--clean-type", default=0, type=int, help="Clean type. Default: 0")
 @click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
 @click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
@@ -404,6 +410,60 @@ async def set_room_clean(
     )
 
     # Logout if we used a username and password
+    if logout:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--resume", "ctrl_value", flag_value="resume", default=True, help="Resume/start zone cleaning.")
+@click.option("--pause", "ctrl_value", flag_value="pause", help="Pause zone cleaning.")
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.option("--timeout", default=5.0, type=float, help="Reply wait timeout in seconds. Default: 5")
+@click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
+@click.pass_context
+@coro
+async def set_zone_clean(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    ctrl_value: str,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Start or pause zone cleaning."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    logout = await authorize(kh, username, password, auth_token, mqtt_token, token_file)
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = kh.set_zone_clean(
+        dev,
+        ctrl_value=parse_room_clean_control(ctrl_value.lower()),
+        qos=qos,
+        timeout=timeout,
+    )
+
     if logout:
         await kh.logout()
 
@@ -543,6 +603,129 @@ async def set_direction(
         raise click.BadParameter("Device ID not found.")
 
     result = kh.set_direction(dev, parse_direction_control(direction), qos=qos)
+
+    if logout:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--room-id", required=True, type=int, help="Room ID to split.")
+@click.option("--map-id", required=True, type=int, help="Map ID.")
+@click.option("--split-points", required=True, help="Comma-separated split points: x1,y1,x2,y2")
+@click.option("--lang", default=8, type=int, help="Language code sent in payload. Default: 8")
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.option("--timeout", default=5.0, type=float, help="Reply wait timeout in seconds. Default: 5")
+@click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
+@click.pass_context
+@coro
+async def split_room(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    room_id: int,
+    map_id: int,
+    split_points: str,
+    lang: int,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Split a room on the current map."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    logout = await authorize(kh, username, password, auth_token, mqtt_token, token_file)
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    parsed_split_points = parse_point_values(split_points, 4, "split-points")
+
+    result = kh.split_room(
+        dev,
+        room_id=room_id,
+        split_points=parsed_split_points,
+        map_id=map_id,
+        lang=lang,
+        qos=qos,
+        timeout=timeout,
+    )
+
+    if logout:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option(
+    "--zone-points",
+    required=True,
+    help="Comma-separated zone points: x1,y1,x2,y2,x3,y3,x4,y4",
+)
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.option("--timeout", default=5.0, type=float, help="Reply wait timeout in seconds. Default: 5")
+@click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
+@click.pass_context
+@coro
+async def set_zone_points(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    zone_points: str,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Set zone points on the current map."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    logout = await authorize(kh, username, password, auth_token, mqtt_token, token_file)
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    parsed_zone_points = parse_point_values(zone_points, 8, "zone-points")
+
+    result = kh.set_zone_points(
+        dev,
+        zone_points=parsed_zone_points,
+        qos=qos,
+        timeout=timeout,
+    )
 
     if logout:
         await kh.logout()

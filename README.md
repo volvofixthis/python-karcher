@@ -32,7 +32,10 @@ Commands:
   mqtt-publish       Publish an MQTT message.
   recharge           Start or stop device recharging.
   set-direction      Send a manual direction command.
+  set-zone-clean     Start or pause zone cleaning.
   set-room-clean     Start cleaning selected rooms.
+  set-zone-points    Set zone points on the current map.
+  split-room         Split a room on the current map.
   urls               Get region information.
 ```
 

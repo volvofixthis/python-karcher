@@ -84,6 +84,7 @@ class KarcherHome:
         self._mqtt = None
         self._device_props = {}
         self._wait_events = {}
+        self._wait_messages = {}
         self._http = None
         self._http_external = False
 
@@ -384,11 +385,13 @@ class KarcherHome:
         if sn is None:
             # Ignore messages for devices we have not subscribed to
             if topic in self._wait_events:
+                self._wait_messages[topic] = msg
                 self._wait_events[topic].set()
             return
 
         if "thing/event/property/post" in topic or "thing/event/cur_path/post" in topic or "upgrade/post" in topic:
             if topic in self._wait_events:
+                self._wait_messages[topic] = msg
                 self._wait_events[topic].set()
             return
 
@@ -399,10 +402,12 @@ class KarcherHome:
                 return
             self._update_device_properties(sn, data["data"])
             if topic in self._wait_events:
+                self._wait_messages[topic] = msg
                 self._wait_events[topic].set()
             return
 
         if topic in self._wait_events:
+            self._wait_messages[topic] = msg
             self._wait_events[topic].set()
 
     def _wait_for_topic(self, topic: str, timeout: float = 5):
@@ -417,6 +422,32 @@ class KarcherHome:
 
         event.wait(timeout)
         del self._wait_events[topic]
+
+    def _publish_and_wait_for_reply(self, dev: Device, topic: str, payload: dict, reply_topic: str, qos: int = 0, timeout: float = 5):
+        self._mqtt_connect(wait_for_connect=True)
+
+        subscr = dev.sn not in self._device_props
+        if subscr:
+            self.subscribe_device(dev)
+
+        event = threading.Event()
+        self._wait_events[reply_topic] = event
+        if reply_topic in self._wait_messages:
+            del self._wait_messages[reply_topic]
+
+        self._mqtt.publish(topic, json.dumps(payload), qos=qos)
+        event.wait(timeout)
+
+        del self._wait_events[reply_topic]
+        data = None
+        if reply_topic in self._wait_messages:
+            data = json.loads(self._wait_messages[reply_topic].decode("utf-8", "surrogateescape"))
+            del self._wait_messages[reply_topic]
+
+        if subscr:
+            self.unsubscribe_device(dev)
+
+        return data
 
     def _update_device_properties(self, sn: str, data: dict):
         if sn not in self._device_props:
@@ -486,6 +517,36 @@ class KarcherHome:
             "payload": payload,
         }
 
+    def set_zone_clean(
+        self,
+        dev: Device,
+        ctrl_value: RoomCleanControl = RoomCleanControl.RESUME,
+        qos: int = 0,
+        timeout: float = 5,
+    ):
+        """Start or pause zone cleaning."""
+
+        payload = {
+            "version": "3.0",
+            "tenantId": TENANT_ID,
+            "method": "service.set_zone_clean",
+            "params": {
+                "ctrl_value": int(ctrl_value),
+            },
+            "msgId": get_message_id(),
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/set_zone_clean"
+        reply_topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke_reply/set_zone_clean"
+        reply = self._publish_and_wait_for_reply(dev, topic, payload, reply_topic, qos=qos, timeout=timeout)
+        return {
+            "published": True,
+            "topic": topic,
+            "reply_topic": reply_topic,
+            "qos": qos,
+            "payload": payload,
+            "reply": reply,
+        }
+
     def recharge(self, dev: Device, action: RechargeControl, qos: int = 0):
         """Start or stop recharging."""
 
@@ -524,6 +585,72 @@ class KarcherHome:
             "topic": topic,
             "qos": qos,
             "payload": payload,
+        }
+
+    def split_room(
+        self,
+        dev: Device,
+        room_id: int,
+        split_points: List[float],
+        map_id: int,
+        lang: int = 8,
+        qos: int = 0,
+        timeout: float = 5,
+    ):
+        """Split a room on the current map."""
+
+        payload = {
+            "tenantId": TENANT_ID,
+            "params": {
+                "lang": lang,
+                "room_id": room_id,
+                "split_points": split_points,
+                "map_id": map_id,
+            },
+            "method": "service.split_room",
+            "msgId": get_message_id(),
+            "version": "3.0",
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/split_room"
+        reply_topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke_reply/split_room"
+        reply = self._publish_and_wait_for_reply(dev, topic, payload, reply_topic, qos=qos, timeout=timeout)
+        return {
+            "published": True,
+            "topic": topic,
+            "reply_topic": reply_topic,
+            "qos": qos,
+            "payload": payload,
+            "reply": reply,
+        }
+
+    def set_zone_points(
+        self,
+        dev: Device,
+        zone_points: List[float],
+        qos: int = 0,
+        timeout: float = 5,
+    ):
+        """Set zone points on the current map."""
+
+        payload = {
+            "msgId": get_message_id(),
+            "tenantId": TENANT_ID,
+            "version": "3.0",
+            "params": {
+                "zone_points": zone_points,
+            },
+            "method": "service.set_zone_points",
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/set_zone_points"
+        reply_topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke_reply/set_zone_points"
+        reply = self._publish_and_wait_for_reply(dev, topic, payload, reply_topic, qos=qos, timeout=timeout)
+        return {
+            "published": True,
+            "topic": topic,
+            "reply_topic": reply_topic,
+            "qos": qos,
+            "payload": payload,
+            "reply": reply,
         }
 
     def get_device_topics(self, dev: Device) -> List[str]:
