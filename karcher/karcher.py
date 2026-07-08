@@ -15,17 +15,17 @@ from .auth import Domains, Session
 from .consts import (
     APP_VERSION_CODE,
     APP_VERSION_NAME,
-    DirectionControl,
     PROJECT_TYPE,
-    RechargeControl,
     PROTOCOL_VERSION,
     REGION_URLS,
     ROBOT_PROPERTIES,
-    RoomCleanControl,
     SSL_CERTIFICATE_THUMBPRINT,
     TENANT_ID,
+    DirectionControl,
     Language,
+    RechargeControl,
     Region,
+    RoomCleanControl,
 )
 from .countries import get_country_code, get_region_by_country
 from .device import Device, DeviceProperties
@@ -423,7 +423,9 @@ class KarcherHome:
         event.wait(timeout)
         del self._wait_events[topic]
 
-    def _publish_and_wait_for_reply(self, dev: Device, topic: str, payload: dict, reply_topic: str, qos: int = 0, timeout: float = 5):
+    def _publish_and_wait_for_reply(
+        self, dev: Device, topic: str, payload: dict, reply_topic: str, qos: int = 0, timeout: float = 5
+    ):
         self._mqtt_connect(wait_for_connect=True)
 
         subscr = dev.sn not in self._device_props
@@ -623,6 +625,27 @@ class KarcherHome:
             "reply": reply,
         }
 
+    def set_preference_type(self, dev: Device, prefer_type: int, qos: int = 0):
+        """Set device preference type."""
+
+        payload = {
+            "version": "3.0",
+            "tenantId": TENANT_ID,
+            "method": "service.set_preference_type",
+            "params": {
+                "prefer_type": prefer_type,
+            },
+            "msgId": get_message_id(),
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/set_preference_type"
+        self.publish_message(topic, json.dumps(payload), qos=qos)
+        return {
+            "published": True,
+            "topic": topic,
+            "qos": qos,
+            "payload": payload,
+        }
+
     def set_zone_points(
         self,
         dev: Device,
@@ -631,6 +654,8 @@ class KarcherHome:
         timeout: float = 5,
     ):
         """Set zone points on the current map."""
+
+        self.set_preference_type(dev, prefer_type=0, qos=qos)
 
         payload = {
             "msgId": get_message_id(),
