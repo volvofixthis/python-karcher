@@ -489,6 +489,27 @@ class KarcherHome:
         self._mqtt_connect(wait_for_connect=True)
         self._mqtt.publish(topic, payload, qos=qos)
 
+    def upload_by_maptype(self, dev: Device, map_type: int = 0, qos: int = 0):
+        """Upload data by map type."""
+
+        payload = {
+            "params": {
+                "map_type": map_type,
+            },
+            "method": "service.upload_by_maptype",
+            "tenantId": TENANT_ID,
+            "msgId": get_message_id(),
+            "version": "3.0",
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/upload_by_maptype"
+        self.publish_message(topic, json.dumps(payload), qos=qos)
+        return {
+            "published": True,
+            "topic": topic,
+            "qos": qos,
+            "payload": payload,
+        }
+
     def set_room_clean(
         self,
         dev: Device,
@@ -498,6 +519,8 @@ class KarcherHome:
         qos: int = 0,
     ):
         """Start room cleaning for selected rooms."""
+
+        self.upload_by_maptype(dev, map_type=0, qos=qos)
 
         payload = {
             "tenantId": TENANT_ID,
