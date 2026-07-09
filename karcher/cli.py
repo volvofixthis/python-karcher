@@ -396,7 +396,7 @@ async def mqtt_publish(
 @click.option("--auth-token", "-t", default=None, help="Authorization token.")
 @click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
 @click.option("--device-id", "-d", required=True, help="Device ID.")
-@click.option("--room-id", required=True, multiple=True, help="Room ID to clean. Repeat for multiple rooms.")
+@click.option("--room-id", required=True, multiple=True, type=int, help="Room ID to clean. Repeat for multiple rooms.")
 @click.option("--resume", "ctrl_value", flag_value="resume", default=True, help="Resume/start room cleaning.")
 @click.option("--pause", "ctrl_value", flag_value="pause", help="Pause room cleaning.")
 @click.option("--clean-type", default=0, type=int, help="Clean type. Default: 0")
@@ -411,7 +411,7 @@ async def set_room_clean(
     auth_token: str,
     mqtt_token: str,
     device_id: str,
-    room_id: tuple[str, ...],
+    room_id: tuple[int, ...],
     ctrl_value: str,
     clean_type: int,
     qos: int,

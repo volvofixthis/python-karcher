@@ -513,7 +513,7 @@ class KarcherHome:
     def set_room_clean(
         self,
         dev: Device,
-        room_ids: List[str],
+        room_ids: List[int],
         ctrl_value: RoomCleanControl = RoomCleanControl.RESUME,
         clean_type: int = 0,
         qos: int = 0,
