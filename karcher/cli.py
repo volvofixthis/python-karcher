@@ -194,6 +194,36 @@ def parse_point_values(csv_values: str, expected: int, label: str) -> list[float
     return parsed
 
 
+def build_room_preference(
+    room_id: int,
+    room_name: str,
+    setting_0: int,
+    clean_mode: int,
+    suction_power: int,
+    wet_cleaning: int,
+    clean_count: int,
+    setting_5: int,
+    setting_6: int,
+    setting_7: int,
+    setting_8: int,
+    setting_9: int,
+) -> list[int | str]:
+    return [
+        room_id,
+        room_name,
+        setting_0,
+        clean_mode,
+        suction_power,
+        wet_cleaning,
+        clean_count,
+        setting_5,
+        setting_6,
+        setting_7,
+        setting_8,
+        setting_9,
+    ]
+
+
 @cli.command()
 @click.pass_context
 @coro
@@ -410,6 +440,100 @@ async def set_room_clean(
     )
 
     # Logout if we used a username and password
+    if logout:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--map-id", required=True, type=int, help="Map ID.")
+@click.option("--room-id", required=True, type=int, help="Room ID.")
+@click.option("--room-name", required=True, help="Room name.")
+@click.option("--prefer-type", default=1, type=int, help="Preference type. Default: 1")
+@click.option("--setting-0", default=0, type=int, help="Room preference value at index 0. Default: 0")
+@click.option("--clean-mode", default=1, type=click.IntRange(0, 2), help="Cleaning mode at index 1. Default: 1")
+@click.option("--suction-power", default=0, type=click.IntRange(0, 3), help="Suction power at index 2. Default: 0")
+@click.option("--wet-cleaning", default=2, type=click.IntRange(0, 2), help="Wet cleaning setting at index 3. Default: 2")
+@click.option("--clean-count", default=1, type=click.IntRange(0, 1), help="Clean count at index 4. Default: 1")
+@click.option("--setting-5", default=0, type=int, help="Room preference value at index 5. Default: 0")
+@click.option("--setting-6", default=1, type=int, help="Room preference value at index 6. Default: 1")
+@click.option("--setting-7", default=0, type=int, help="Room preference value at index 7. Default: 0")
+@click.option("--setting-8", default=0, type=int, help="Room preference value at index 8. Default: 0")
+@click.option("--setting-9", default=1, type=int, help="Room preference value at index 9. Default: 1")
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.option("--timeout", default=5.0, type=float, help="Reply wait timeout in seconds. Default: 5")
+@click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
+@click.pass_context
+@coro
+async def set_preference(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    map_id: int,
+    room_id: int,
+    room_name: str,
+    prefer_type: int,
+    setting_0: int,
+    clean_mode: int,
+    suction_power: int,
+    wet_cleaning: int,
+    clean_count: int,
+    setting_5: int,
+    setting_6: int,
+    setting_7: int,
+    setting_8: int,
+    setting_9: int,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Set room preference for the current map."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    logout = await authorize(kh, username, password, auth_token, mqtt_token, token_file)
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = kh.set_preference(
+        dev,
+        room_preference=build_room_preference(
+            room_id=room_id,
+            room_name=room_name,
+            setting_0=setting_0,
+            clean_mode=clean_mode,
+            suction_power=suction_power,
+            wet_cleaning=wet_cleaning,
+            clean_count=clean_count,
+            setting_5=setting_5,
+            setting_6=setting_6,
+            setting_7=setting_7,
+            setting_8=setting_8,
+            setting_9=setting_9,
+        ),
+        map_id=map_id,
+        prefer_type=prefer_type,
+        qos=qos,
+        timeout=timeout,
+    )
+
     if logout:
         await kh.logout()
 

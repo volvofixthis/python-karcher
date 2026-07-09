@@ -646,6 +646,40 @@ class KarcherHome:
             "payload": payload,
         }
 
+    def set_preference(
+        self,
+        dev: Device,
+        room_preference: list[Any],
+        map_id: int,
+        prefer_type: int = 1,
+        qos: int = 0,
+        timeout: float = 5,
+    ):
+        """Set room preference for the current map."""
+
+        payload = {
+            "msgId": get_message_id(),
+            "tenantId": TENANT_ID,
+            "version": "3.0",
+            "method": "service.set_preference",
+            "params": {
+                "room_preference": [room_preference],
+                "map_id": map_id,
+                "prefer_type": prefer_type,
+            },
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke/set_preference"
+        reply_topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service_invoke_reply/set_preference"
+        reply = self._publish_and_wait_for_reply(dev, topic, payload, reply_topic, qos=qos, timeout=timeout)
+        return {
+            "published": True,
+            "topic": topic,
+            "reply_topic": reply_topic,
+            "qos": qos,
+            "payload": payload,
+            "reply": reply,
+        }
+
     def set_zone_points(
         self,
         dev: Device,
