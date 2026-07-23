@@ -1,0 +1,7 @@
+## Установка типа влажной уборки
+map_route = 0 - энергоэффективная влажная уборка
+map_route = 1 - тщательная влажная уборка
+karcher-home -c RU set-prop -d 1644234834944434209 --prop mop_route --value 0 --token-file ~/.config/karcher/tokens
+.json
+## Настройки AI
+karcher-home -c RU set-prop -d 1644234834944434209 --prop privacy --value '{"ai_recognize":1, "dirt_recognize": 1, "pet_recognize": 1, "carpet_turbo":1,"carpet_avoid":0,"carpet_show":1}' --token-file ~/.config/karcher/tokens.json

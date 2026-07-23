@@ -316,6 +316,33 @@ class KarcherHome:
 
         return [Device(**d) for d in await self._process_response(resp)]
 
+    async def try_upgrade_firmware(
+        self,
+        dev: Device,
+        cur_version_code: str = "0",
+        package_type: str = "host_fw",
+        phone_brand: str = "android",
+    ):
+        """Request the latest firmware upgrade package for a device."""
+
+        if self._session is None or self._session.auth_token == "" or self._session.user_id == "":
+            raise KarcherHomeAccessDenied("Not authorized")
+
+        resp = await self._request(
+            "POST",
+            "/upgrade-service/firmware/tryUpgrade",
+            json={
+                "productId": dev.product_id.value,
+                "productModelCode": dev.product_mode_code,
+                "curVersionCode": cur_version_code,
+                "packageType": package_type,
+                "username": dev.sn,
+                "phoneBrand": phone_brand,
+            },
+        )
+
+        return await self._process_response(resp)
+
     async def get_map_data(self, dev: Device, map: int = 1):
         # <tenantId>/<modeType>/<deviceSn>/01-01-2022/map/temp/0046690461_<deviceSn>_1
         mapDir = (
@@ -488,6 +515,30 @@ class KarcherHome:
 
         self._mqtt_connect(wait_for_connect=True)
         self._mqtt.publish(topic, payload, qos=qos)
+
+    def set_property(self, dev: Device, prop: str, value: Any, qos: int = 0, timeout: float = 5):
+        """Set a device property."""
+
+        payload = {
+            "tenantId": TENANT_ID,
+            "method": "prop.set",
+            "version": "1.0",
+            "msgId": get_message_id(),
+            "params": {
+                prop: value,
+            },
+        }
+        topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service/property/set"
+        reply_topic = "/mqtt/" + dev.product_id + "/" + dev.sn + "/thing/service/property/set_reply"
+        reply = self._publish_and_wait_for_reply(dev, topic, payload, reply_topic, qos=qos, timeout=timeout)
+        return {
+            "published": True,
+            "topic": topic,
+            "reply_topic": reply_topic,
+            "qos": qos,
+            "payload": payload,
+            "reply": reply,
+        }
 
     def upload_by_maptype(self, dev: Device, map_type: int = 0, qos: int = 0):
         """Upload data by map type."""

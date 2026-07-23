@@ -7,12 +7,12 @@ import asyncio
 import dataclasses
 import json
 import logging
-from pathlib import Path
 from functools import wraps
+from pathlib import Path
 
 import click
-from karcher.consts import DirectionControl, RechargeControl, RoomCleanControl
 from karcher.auth import Session
+from karcher.consts import DirectionControl, RechargeControl, RoomCleanControl
 from karcher.exception import KarcherHomeException
 from karcher.karcher import KarcherHome
 
@@ -194,6 +194,13 @@ def parse_point_values(csv_values: str, expected: int, label: str) -> list[float
     return parsed
 
 
+def parse_json_value(value: str, label: str = "value"):
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError as ex:
+        raise click.BadParameter(f"Invalid --{label} JSON value: {ex}") from ex
+
+
 def build_room_preference(
     room_id: int,
     room_name: str,
@@ -290,7 +297,9 @@ async def devices(ctx: click.Context, username: str, password: str, auth_token: 
 @click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
 @click.pass_context
 @coro
-async def device_topics(ctx: click.Context, username: str, password: str, auth_token: str, device_id: str, token_file: str | None):
+async def device_topics(
+    ctx: click.Context, username: str, password: str, auth_token: str, device_id: str, token_file: str | None
+):
     """List all device topics."""
 
     kh = await KarcherHome.create(country=ctx.obj.country)
@@ -325,7 +334,13 @@ async def device_topics(ctx: click.Context, username: str, password: str, auth_t
 @click.pass_context
 @coro
 async def device_properties(
-    ctx: click.Context, username: str, password: str, auth_token: str, mqtt_token: str, device_id: str, token_file: str | None
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    token_file: str | None,
 ):
     """Get device properties."""
 
@@ -350,6 +365,46 @@ async def device_properties(
     await kh.close()
 
     ctx.obj.print(props)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
+@click.pass_context
+@coro
+async def try_upgrade(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    device_id: str,
+    token_file: str | None,
+):
+    """Request the latest firmware upgrade package."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    logout = await authorize(kh, username, password, auth_token, token_file=token_file)
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = await kh.try_upgrade_firmware(dev)
+
+    if logout:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
 
 
 @cli.command()
@@ -388,6 +443,64 @@ async def mqtt_publish(
     await kh.close()
 
     ctx.obj.print({"published": True, "topic": topic, "qos": qos})
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option("--prop", required=True, help="Property name to set.")
+@click.option(
+    "--value", required=True, help='Property value as JSON, for example: 0, 1, true, "text", or {"ai_recognize":0}'
+)
+@click.option("--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0")
+@click.option("--timeout", default=5.0, type=float, help="Reply wait timeout in seconds. Default: 5")
+@click.option("--token-file", default=None, help="Path to saved tokens file. Default: app config tokens.json")
+@click.pass_context
+@coro
+async def set_prop(
+    ctx: click.Context,
+    username: str,
+    password: str,
+    auth_token: str,
+    mqtt_token: str,
+    device_id: str,
+    prop: str,
+    value: str,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Set a device property."""
+
+    kh = await KarcherHome.create(country=ctx.obj.country)
+    logout = await authorize(kh, username, password, auth_token, mqtt_token, token_file)
+
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    result = kh.set_property(
+        dev,
+        prop=prop,
+        value=parse_json_value(value),
+        qos=qos,
+        timeout=timeout,
+    )
+
+    if logout:
+        await kh.logout()
+
+    await kh.close()
+
+    ctx.obj.print(result)
 
 
 @cli.command()
@@ -454,14 +567,16 @@ async def set_room_clean(
 @click.option("--auth-token", "-t", default=None, help="Authorization token.")
 @click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
 @click.option("--device-id", "-d", required=True, help="Device ID.")
-@click.option("--map-id", required=True, type=int, help="Map ID.")
+@click.option("--map-id", default=0, type=int, help="Map ID.")
 @click.option("--room-id", required=True, type=int, help="Room ID.")
 @click.option("--room-name", required=True, help="Room name.")
 @click.option("--prefer-type", default=1, type=int, help="Preference type. Default: 1")
 @click.option("--setting-0", default=0, type=int, help="Room preference value at index 0. Default: 0")
 @click.option("--clean-mode", default=1, type=click.IntRange(0, 2), help="Cleaning mode at index 1. Default: 1")
 @click.option("--suction-power", default=0, type=click.IntRange(0, 3), help="Suction power at index 2. Default: 0")
-@click.option("--wet-cleaning", default=2, type=click.IntRange(0, 2), help="Wet cleaning setting at index 3. Default: 2")
+@click.option(
+    "--wet-cleaning", default=2, type=click.IntRange(0, 2), help="Wet cleaning setting at index 3. Default: 2"
+)
 @click.option("--clean-count", default=1, type=click.IntRange(0, 1), help="Clean count at index 4. Default: 1")
 @click.option("--setting-5", default=0, type=int, help="Room preference value at index 5. Default: 0")
 @click.option("--setting-6", default=1, type=int, help="Room preference value at index 6. Default: 1")
@@ -511,6 +626,10 @@ async def set_preference(
 
     if dev is None:
         raise click.BadParameter("Device ID not found.")
+
+    if map_id == 0:
+        props = kh.get_device_properties(dev)
+        map_id = props.current_map_id
 
     result = kh.set_preference(
         dev,
