@@ -3,3 +3,4 @@ protobuf >= 4.22
 click >= 8.1
 cryptography >= 40.0
 paho-mqtt >= 2.1.0
+PyYAML >= 6.0

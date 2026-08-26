@@ -22,6 +22,7 @@ setup(
         "paho-mqtt>=2.1.0",
         "cryptography",
         "protobuf",
+        "PyYAML",
     ],
     entry_points="""
         [console_scripts]

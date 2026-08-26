@@ -42,12 +42,29 @@ Commands:
 Save tokens once and reuse them later:
 
 ```sh
-karcher-home login -u "user@email" -p "password" --save-tokens
+karcher-home login -u "user@email" -p "password"
 karcher-home devices
 karcher-home dock -d "DEVICE_ID"
 ```
 
-By default tokens are stored in the app config directory as `tokens.json`. You can override that with `--token-file` on `login` and any command that needs auth or MQTT tokens.
+You can also read login credentials from a YAML file:
+
+```yaml
+username: user@email
+password: password
+country: RU
+```
+
+You can also use `region` instead of `country`. When present, the credentials file region is used automatically unless you explicitly pass `--country` on the command line.
+
+Then pass it with `--credentials-file` to `login` or any command that accepts username/password authentication:
+
+```sh
+karcher-home login --credentials-file ./credentials.yaml
+karcher-home devices --credentials-file ./credentials.yaml
+```
+
+Tokens are saved automatically after a successful password-based login, using `tokens.yaml` in the app config directory by default. Existing default `tokens.json` files are migrated automatically the next time they are read. You can override the token path with `--token-file`.
 
 ### From code
 
