@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from click import ClickException
@@ -17,7 +18,9 @@ from karcher.cli import (
     load_saved_credentials,
     load_saved_session,
     resolve_login_credentials,
+    send_clean_control,
 )
+from karcher.consts import RoomCleanControl
 from karcher.exception import KarcherHomeTokenExpired
 
 
@@ -168,6 +171,73 @@ class TestAuthorize(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(logout)
         kh.login.assert_awaited_once_with("user@example.com", "secret")
         self.assertEqual(saved_tokens["mqtt_token"], "mqtt-token")
+
+
+class TestCleanControl(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.kh = Mock()
+        self.kh.get_devices = AsyncMock(
+            return_value=[SimpleNamespace(device_id="device-id")]
+        )
+        self.kh.set_room_clean = Mock(return_value={"mode": "room"})
+        self.kh.set_zone_clean = Mock(return_value={"mode": "zone"})
+
+    async def test_pause_and_resume_route_by_status(self):
+        for status, control, method in [
+            (6, RoomCleanControl.PAUSE, self.kh.set_room_clean),
+            (6, RoomCleanControl.RESUME, self.kh.set_room_clean),
+            (7, RoomCleanControl.PAUSE, self.kh.set_zone_clean),
+            (7, RoomCleanControl.RESUME, self.kh.set_zone_clean),
+        ]:
+            with self.subTest(status=status, control=control):
+                self.kh.reset_mock()
+                self.kh.get_devices = AsyncMock(
+                    return_value=[SimpleNamespace(device_id="device-id")]
+                )
+                self.kh.get_device_properties.return_value = SimpleNamespace(
+                    status=status
+                )
+
+                await send_clean_control(
+                    self.kh, "device-id", control, qos=1, timeout=3.0
+                )
+
+                self.kh.get_device_properties.assert_called_once()
+                method.assert_called_once()
+                self.assertEqual(method.call_args.kwargs["ctrl_value"], control)
+                self.assertEqual(method.call_args.kwargs["qos"], 1)
+                if status == 7:
+                    self.assertEqual(method.call_args.kwargs["timeout"], 3.0)
+
+    async def test_unknown_device_does_not_call_control(self):
+        self.kh.get_devices = AsyncMock(return_value=[])
+
+        with self.assertRaisesRegex(Exception, "Device ID not found"):
+            await send_clean_control(
+                self.kh, "device-id", RoomCleanControl.PAUSE, qos=0, timeout=5.0
+            )
+
+        self.kh.get_device_properties.assert_not_called()
+        self.kh.set_room_clean.assert_not_called()
+        self.kh.set_zone_clean.assert_not_called()
+
+    async def test_unsupported_status_does_not_call_control(self):
+        self.kh.get_device_properties.return_value = SimpleNamespace(status=1)
+
+        with self.assertRaisesRegex(Exception, "does not support pause or resume"):
+            await send_clean_control(
+                self.kh, "device-id", RoomCleanControl.PAUSE, qos=0, timeout=5.0
+            )
+
+        self.kh.set_room_clean.assert_not_called()
+        self.kh.set_zone_clean.assert_not_called()
+
+    def test_pause_and_resume_are_available_in_help(self):
+        result = CliRunner().invoke(cli, ["--help"])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("pause", result.output)
+        self.assertIn("resume", result.output)
 
 
 class TestLoginCommand(unittest.TestCase):

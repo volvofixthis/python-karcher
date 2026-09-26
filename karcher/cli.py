@@ -393,6 +393,35 @@ def parse_room_clean_control(value: str) -> RoomCleanControl:
     return RoomCleanControl.PAUSE
 
 
+async def send_clean_control(
+    kh: KarcherHome,
+    device_id: str,
+    ctrl_value: RoomCleanControl,
+    qos: int,
+    timeout: float,
+):
+    dev = None
+    for device in await kh.get_devices():
+        if device.device_id == device_id:
+            dev = device
+            break
+
+    if dev is None:
+        raise click.BadParameter("Device ID not found.")
+
+    status = kh.get_device_properties(dev).status
+    if status == 6:
+        return kh.set_room_clean(dev, ctrl_value=ctrl_value, qos=qos)
+    if status == 7:
+        return kh.set_zone_clean(
+            dev, ctrl_value=ctrl_value, qos=qos, timeout=timeout
+        )
+
+    raise click.BadParameter(
+        f"Device status {status} does not support pause or resume."
+    )
+
+
 def parse_recharge_control(value: str | None) -> RechargeControl:
     if value == "start":
         return RechargeControl.START
@@ -686,6 +715,114 @@ async def try_upgrade(
         auth_token,
         token_file=token_file,
         credentials_file=credentials_file,
+    )
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@credentials_file_option
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option(
+    "--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0"
+)
+@click.option(
+    "--timeout",
+    default=5.0,
+    type=float,
+    help="Reply wait timeout in seconds. Default: 5",
+)
+@token_file_option
+@click.pass_context
+@coro
+async def pause(
+    ctx: click.Context,
+    username: str | None,
+    password: str | None,
+    credentials_file: str | None,
+    auth_token: str | None,
+    mqtt_token: str | None,
+    device_id: str,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Pause the device's active cleaning operation."""
+
+    kh = await create_karcher(ctx, credentials_file=credentials_file)
+
+    async def command():
+        return await send_clean_control(
+            kh, device_id, RoomCleanControl.PAUSE, qos, timeout
+        )
+
+    result = await run_authorized_command(
+        kh,
+        command,
+        username,
+        password,
+        auth_token,
+        mqtt_token,
+        token_file,
+        credentials_file,
+    )
+
+    ctx.obj.print(result)
+
+
+@cli.command()
+@click.option("--username", "-u", default=None, help="Username to login with.")
+@click.option("--password", "-p", default=None, help="Password to login with.")
+@credentials_file_option
+@click.option("--auth-token", "-t", default=None, help="Authorization token.")
+@click.option("--mqtt-token", "-m", default=None, help="MQTT authorization token.")
+@click.option("--device-id", "-d", required=True, help="Device ID.")
+@click.option(
+    "--qos", default=0, type=click.IntRange(0, 2), help="MQTT QoS level. Default: 0"
+)
+@click.option(
+    "--timeout",
+    default=5.0,
+    type=float,
+    help="Reply wait timeout in seconds. Default: 5",
+)
+@token_file_option
+@click.pass_context
+@coro
+async def resume(
+    ctx: click.Context,
+    username: str | None,
+    password: str | None,
+    credentials_file: str | None,
+    auth_token: str | None,
+    mqtt_token: str | None,
+    device_id: str,
+    qos: int,
+    timeout: float,
+    token_file: str | None,
+):
+    """Resume the device's active cleaning operation."""
+
+    kh = await create_karcher(ctx, credentials_file=credentials_file)
+
+    async def command():
+        return await send_clean_control(
+            kh, device_id, RoomCleanControl.RESUME, qos, timeout
+        )
+
+    result = await run_authorized_command(
+        kh,
+        command,
+        username,
+        password,
+        auth_token,
+        mqtt_token,
+        token_file,
+        credentials_file,
     )
 
     ctx.obj.print(result)
