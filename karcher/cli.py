@@ -414,18 +414,19 @@ async def send_clean_control(
     timeout: float,
 ):
     dev = await resolve_device(kh, device_id)
-    status = kh.get_device_properties(dev).status
-    if status == 6:
+    props = kh.get_device_properties(dev)
+    if props.status in (6, 7) and props.sweep_type == 1:
         return kh.set_room_clean(
             dev, room_ids=[], ctrl_value=ctrl_value, qos=qos
         )
-    if status == 7:
+    if props.status in (6, 7) and props.sweep_type == 3:
         return kh.set_zone_clean(
             dev, ctrl_value=ctrl_value, qos=qos, timeout=timeout
         )
 
     raise click.BadParameter(
-        f"Device status {status} does not support pause or resume."
+        f"Device status {props.status} and sweep type {props.sweep_type} "
+        "do not support pause or resume."
     )
 
 
