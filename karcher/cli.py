@@ -416,7 +416,9 @@ async def send_clean_control(
     dev = await resolve_device(kh, device_id)
     status = kh.get_device_properties(dev).status
     if status == 6:
-        return kh.set_room_clean(dev, ctrl_value=ctrl_value, qos=qos)
+        return kh.set_room_clean(
+            dev, room_ids=[], ctrl_value=ctrl_value, qos=qos
+        )
     if status == 7:
         return kh.set_zone_clean(
             dev, ctrl_value=ctrl_value, qos=qos, timeout=timeout
@@ -438,7 +440,9 @@ async def send_resume_control(
     if props.status == 1:
         return kh.recharge(dev, RechargeControl.START, qos=qos)
     if props.status == 2 and props.sweep_type == 1:
-        return kh.set_room_clean(dev, ctrl_value=RoomCleanControl.RESUME, qos=qos)
+        return kh.set_room_clean(
+            dev, room_ids=[], ctrl_value=RoomCleanControl.RESUME, qos=qos
+        )
     if props.status == 2 and props.sweep_type == 3:
         return kh.set_zone_clean(
             dev,

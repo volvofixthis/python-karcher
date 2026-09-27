@@ -206,6 +206,8 @@ class TestCleanControl(unittest.IsolatedAsyncioTestCase):
                 method.assert_called_once()
                 self.assertEqual(method.call_args.kwargs["ctrl_value"], control)
                 self.assertEqual(method.call_args.kwargs["qos"], 1)
+                if status == 6:
+                    self.assertEqual(method.call_args.kwargs["room_ids"], [])
                 if status == 7:
                     self.assertEqual(method.call_args.kwargs["timeout"], 3.0)
 
@@ -236,7 +238,9 @@ class TestCleanControl(unittest.IsolatedAsyncioTestCase):
                         method.call_args.kwargs["ctrl_value"], RoomCleanControl.RESUME
                     )
                     self.assertEqual(method.call_args.kwargs["qos"], 1)
-                    if sweep_type == 3:
+                    if sweep_type == 1:
+                        self.assertEqual(method.call_args.kwargs["room_ids"], [])
+                    else:
                         self.assertEqual(method.call_args.kwargs["timeout"], 3.0)
 
     async def test_unknown_device_does_not_call_control(self):
