@@ -393,13 +393,7 @@ def parse_room_clean_control(value: str) -> RoomCleanControl:
     return RoomCleanControl.PAUSE
 
 
-async def send_clean_control(
-    kh: KarcherHome,
-    device_id: str,
-    ctrl_value: RoomCleanControl,
-    qos: int,
-    timeout: float,
-):
+async def resolve_device(kh: KarcherHome, device_id: str):
     dev = None
     for device in await kh.get_devices():
         if device.device_id == device_id:
@@ -409,6 +403,17 @@ async def send_clean_control(
     if dev is None:
         raise click.BadParameter("Device ID not found.")
 
+    return dev
+
+
+async def send_clean_control(
+    kh: KarcherHome,
+    device_id: str,
+    ctrl_value: RoomCleanControl,
+    qos: int,
+    timeout: float,
+):
+    dev = await resolve_device(kh, device_id)
     status = kh.get_device_properties(dev).status
     if status == 6:
         return kh.set_room_clean(dev, ctrl_value=ctrl_value, qos=qos)
@@ -419,6 +424,32 @@ async def send_clean_control(
 
     raise click.BadParameter(
         f"Device status {status} does not support pause or resume."
+    )
+
+
+async def send_resume_control(
+    kh: KarcherHome,
+    device_id: str,
+    qos: int,
+    timeout: float,
+):
+    dev = await resolve_device(kh, device_id)
+    props = kh.get_device_properties(dev)
+    if props.status == 1:
+        return kh.recharge(dev, RechargeControl.START, qos=qos)
+    if props.status == 2 and props.sweep_type == 1:
+        return kh.set_room_clean(dev, ctrl_value=RoomCleanControl.RESUME, qos=qos)
+    if props.status == 2 and props.sweep_type == 3:
+        return kh.set_zone_clean(
+            dev,
+            ctrl_value=RoomCleanControl.RESUME,
+            qos=qos,
+            timeout=timeout,
+        )
+
+    raise click.BadParameter(
+        f"Device status {props.status} and sweep type {props.sweep_type} "
+        "do not support resume."
     )
 
 
@@ -810,9 +841,7 @@ async def resume(
     kh = await create_karcher(ctx, credentials_file=credentials_file)
 
     async def command():
-        return await send_clean_control(
-            kh, device_id, RoomCleanControl.RESUME, qos, timeout
-        )
+        return await send_resume_control(kh, device_id, qos, timeout)
 
     result = await run_authorized_command(
         kh,

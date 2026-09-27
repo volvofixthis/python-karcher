@@ -1,10 +1,4 @@
-# pause-resume-commands Specification
-
-## Purpose
-
-Provide simple CLI commands that pause or resume the cleaning operation currently reported by a Kärcher Home robot.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Pause and resume commands select the active cleaning mode
 
